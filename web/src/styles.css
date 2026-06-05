@@ -419,3 +419,7 @@ button.ghost {
   padding: 10px 14px;
   border-radius: 8px;
 }
+
+.inline-error {
+  margin: 12px 0 0;
+}

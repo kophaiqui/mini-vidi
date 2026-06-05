@@ -31,6 +31,7 @@ export function App() {
 
   const [status, setStatus] = useState<Status>('idle');
   const [progress, setProgress] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const busy = status === 'loading' || status === 'processing';
@@ -47,7 +48,7 @@ export function App() {
   }
 
   async function handleLoad() {
-    setError(null);
+    setLoadError(null);
     setStatus('loading');
     try {
       const res = await api.import(url.trim());
@@ -59,7 +60,7 @@ export function App() {
       setProgress(0);
       setStatus('ready');
     } catch (e) {
-      setError((e as Error).message);
+      setLoadError((e as Error).message);
       setStatus('failed');
     }
   }
@@ -160,6 +161,7 @@ export function App() {
           </button>
         </div>
         {status === 'loading' && <p className="hint">Downloading source — this can take a moment.</p>}
+        {loadError && <p className="error inline-error">{loadError}</p>}
       </section>
 
       {jobId && (
