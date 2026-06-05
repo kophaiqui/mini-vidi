@@ -6,6 +6,7 @@ import {
   IsIn,
   IsNumber,
   IsOptional,
+  IsString,
   Max,
   Min,
   ValidateNested,
@@ -13,6 +14,12 @@ import {
 import { LIMITS } from '../config/limits';
 
 export class ClipDto {
+  // Client-side key for React lists; the backend ignores it but accepts it so
+  // the whitelist validator doesn't reject the payload.
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @IsNumber()
   @Min(0)
   start: number;
