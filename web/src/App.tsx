@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, Clip, Transition } from './api';
+import { Tour, TOUR_STEPS } from './Tour';
 
 function fmt(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -14,6 +15,13 @@ function newId(): string {
 }
 
 type Status = 'idle' | 'loading' | 'ready' | 'processing' | 'done' | 'failed';
+
+// Demo content the Tutorial loads so every step highlights real UI.
+const TUTORIAL_URL = 'https://www.youtube.com/watch?v=SlQR9iu09bQ';
+const DEMO_CLIPS: Omit<Clip, 'id'>[] = [
+  { start: 5, end: 10, transitionAfter: 'fade' },
+  { start: 15, end: 20 },
+];
 
 export function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -33,6 +41,8 @@ export function App() {
   const [progress, setProgress] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [tourStep, setTourStep] = useState<number | null>(null);
 
   const busy = status === 'loading' || status === 'processing';
   const usesFade = clips.some((c, i) => i < clips.length - 1 && c.transitionAfter === 'fade');
@@ -59,6 +69,26 @@ export function App() {
       setDraftEnd(null);
       setProgress(0);
       setStatus('ready');
+    } catch (e) {
+      setLoadError((e as Error).message);
+      setStatus('failed');
+    }
+  }
+
+  async function startTour() {
+    setTourStep(0);
+    // Seed the demo only when the editor is empty — never clobber the user's work.
+    if (jobId) return;
+    setUrl(TUTORIAL_URL);
+    setLoadError(null);
+    setStatus('loading');
+    try {
+      const res = await api.import(TUTORIAL_URL);
+      setJobId(res.jobId);
+      setDuration(res.duration);
+      setProgress(0);
+      setStatus('ready');
+      setClips(DEMO_CLIPS.map((c) => ({ id: newId(), ...c })));
     } catch (e) {
       setLoadError((e as Error).message);
       setStatus('failed');
@@ -142,11 +172,16 @@ export function App() {
   return (
     <div className="app">
       <header>
-        <h1>Video Editor Mini</h1>
+        <div className="app-title-row">
+          <h1>Video Editor Mini</h1>
+          <button className="tutorial-btn" onClick={startTour}>
+            Tutorial
+          </button>
+        </div>
         <p className="sub">Paste a YouTube link · pick clips · arrange · merge · export</p>
       </header>
 
-      <section className="card">
+      <section className="card" data-tour="url">
         <label className="field-label">YouTube URL</label>
         <div className="row">
           <input
@@ -166,7 +201,7 @@ export function App() {
 
       {jobId && (
         <>
-          <section className="card">
+          <section className="card" data-tour="preview">
             <video ref={videoRef} className="preview" src={api.sourceUrl(jobId)} controls />
             <div className="timeline">
               <span>0:00</span>
@@ -174,7 +209,7 @@ export function App() {
             </div>
           </section>
 
-          <section className="card">
+          <section className="card" data-tour="picker">
             <label className="field-label">Select a clip</label>
             <div className="row clip-picker">
               <button onClick={() => setDraftStart(now())}>Set Start</button>
@@ -218,7 +253,7 @@ export function App() {
                 <p className="hint">Final video is built left → right.</p>
               </section>
 
-              <section className="card">
+              <section className="card" data-tour="clips">
                 <label className="field-label">Selected clips ({clips.length})</label>
                 <ul className="clip-list">
                   {clips.map((c, i) => {
@@ -293,7 +328,7 @@ export function App() {
             </>
           )}
 
-          <section className="card export">
+          <section className="card export" data-tour="export">
             <button className="primary big" onClick={handleExport} disabled={busy || clips.length === 0}>
               {status === 'processing' ? 'Processing…' : 'Export Video'}
             </button>
@@ -317,6 +352,18 @@ export function App() {
       )}
 
       {error && <p className="error">{error}</p>}
+
+      {tourStep !== null && (
+        <Tour
+          steps={TOUR_STEPS}
+          index={tourStep}
+          onPrev={() => setTourStep((s) => Math.max(0, (s ?? 0) - 1))}
+          onNext={() =>
+            setTourStep((s) => ((s ?? 0) >= TOUR_STEPS.length - 1 ? null : (s ?? 0) + 1))
+          }
+          onClose={() => setTourStep(null)}
+        />
+      )}
     </div>
   );
 }

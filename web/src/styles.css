@@ -28,10 +28,23 @@ body {
   padding: 32px 20px 80px;
 }
 
+.app-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 header h1 {
   margin: 0;
   font-size: 26px;
   letter-spacing: -0.02em;
+}
+
+.tutorial-btn {
+  padding: 7px 14px;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
 .sub {
@@ -422,4 +435,102 @@ button.ghost {
 
 .inline-error {
   margin: 12px 0 0;
+}
+
+/* ---- Onboarding tour ---- */
+.tour-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.tour-blocker {
+  position: fixed;
+  inset: 0;
+}
+
+.tour-blocker.dim {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.tour-spot {
+  position: fixed;
+  border-radius: 12px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.tour-card {
+  position: fixed;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.tour-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.tour-card p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.tour-note {
+  margin-top: 8px !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+}
+
+.tour-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+  font-size: 18px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+}
+
+.tour-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.tour-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.tour-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.tour-dots span.on {
+  background: var(--accent);
+}
+
+.tour-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.tour-nav button {
+  padding: 7px 14px;
+  font-size: 13px;
 }
