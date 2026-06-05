@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      VIDEO_TMP_DIR: /tmp/video-editor
+    volumes:
+      - video-data:/tmp/video-editor
+    restart: unless-stopped
+
+volumes:
+  video-data:
