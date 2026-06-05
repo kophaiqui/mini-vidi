@@ -10,6 +10,21 @@ Paste a YouTube URL → preview → pick one or more clip ranges → merge with 
 
 ---
 
+## User flow
+
+1. **Paste a YouTube URL** and click **Load**. The app downloads the video.
+2. **Preview** it in a normal video player you can play and scrub.
+3. **Select clip ranges.** Scrub to a moment, click **Set Start**; scrub forward,
+   click **Set End**; click **Add Clip**. Repeat for as many segments as you want.
+4. **Arrange the clips.** Reorder them with the up/down arrows, or delete one.
+   The output is built top-to-bottom in this order.
+5. **Choose a transition** between each pair of clips: **Cut** (a hard join) or
+   **Fade** (the first clip fades out, the next fades in).
+6. **Export.** A progress bar fills as the clips are cut and joined into one video.
+7. **Download** the finished MP4.
+
+---
+
 ## Run it
 
 ### Docker (recommended — matches the target environment)
