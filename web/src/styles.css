@@ -171,14 +171,29 @@ button.ghost {
 
 .clip-list li {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 8px 12px;
   background: #0f1115;
   border: 1px solid var(--border);
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
   font-size: 14px;
+}
+
+.clip-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clip-thumb {
+  width: 72px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #000;
+  flex-shrink: 0;
 }
 
 .badge {
@@ -191,19 +206,141 @@ button.ghost {
   font-size: 12px;
 }
 
-.clip-list li button {
+.clip-actions {
   margin-left: auto;
-}
-
-.transition-row {
-  gap: 20px;
-}
-
-.radio {
   display: flex;
   align-items: center;
-  gap: 6px;
-  cursor: pointer;
+  gap: 4px;
+}
+
+.ghost-btn {
+  padding: 4px 10px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.clip-transition {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 4px;
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+
+.ct-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Segmented Cut/Fade toggle */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.seg button {
+  border: none;
+  border-radius: 0;
+  padding: 5px 14px;
+  font-size: 13px;
+  background: transparent;
+}
+
+.seg button:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.seg button.seg-on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.clip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.clip-footer .hint {
+  margin: 0;
+}
+
+/* Mini timeline */
+.mini-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.mt-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mt-clip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: #20242e;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mt-thumb {
+  width: 96px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #000;
+  display: block;
+}
+
+.mt-index {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.mt-range {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mt-link {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.mt-link::before {
+  content: '—';
+  margin-right: 6px;
+  color: var(--border);
+}
+.mt-link::after {
+  content: '→';
+  margin-left: 6px;
+  color: var(--border);
+}
+
+.mt-link-fade {
+  color: var(--accent);
+}
+
+.mt-link-cut {
+  color: var(--muted);
 }
 
 .fade-dur {
@@ -221,6 +358,22 @@ button.ghost {
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
+}
+
+.progress {
+  margin-top: 14px;
+  height: 6px;
+  background: #0f1115;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
 .export .status {
