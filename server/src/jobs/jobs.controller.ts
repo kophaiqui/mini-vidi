@@ -32,36 +32,50 @@ export class JobsController {
   @Get(':id')
   status(@Param('id') id: string) {
     const job = this.jobs.get(id);
-    return { jobId: job.id, status: job.status, error: job.error };
+    return { jobId: job.id, status: job.status, progress: job.progress ?? 0, error: job.error };
   }
 
   /**
-   * Synchronous export: validate, run the ffmpeg pipeline through the
-   * single-slot queue, and return when the file is ready. The request holds
-   * open for the duration — fine for short clips, and keeps the client simple.
+   * Async export: validate the request synchronously, enqueue the ffmpeg
+   * pipeline on the single-slot queue, and return immediately. Clients poll
+   * GET /jobs/:id for status + progress. Heavy clips can take minutes, so we
+   * never hold the request open for the duration.
    */
   @Post(':id/export')
-  async export(@Param('id') id: string, @Body() dto: ExportDto) {
+  export(@Param('id') id: string, @Body() dto: ExportDto) {
     const job = this.jobs.get(id);
     if (job.status === 'downloading') {
       throw new BadRequestException('Source is still downloading.');
+    }
+    if (job.status === 'processing') {
+      throw new BadRequestException('An export is already running for this video.');
     }
     this.validateClips(dto, job.duration);
 
     const fadeDuration = dto.fadeDuration ?? Math.min(0.5, LIMITS.MAX_TRANSITION_DURATION);
 
-    this.jobs.setStatus(id, 'processing');
+    this.jobs.update(id, { status: 'processing', progress: 0, error: undefined });
+    // Fire-and-forget through the queue; runExport owns all status updates.
+    void this.queue.run(() => this.runExport(id, job.sourcePath, dto, fadeDuration));
+
+    return { jobId: id, status: 'accepted' };
+  }
+
+  private async runExport(
+    id: string,
+    sourcePath: string,
+    dto: ExportDto,
+    fadeDuration: number,
+  ): Promise<void> {
     try {
-      const outputPath = await this.queue.run(() =>
-        this.ffmpeg.export(id, job.sourcePath, dto.clips, dto.transition, fadeDuration),
+      const outputPath = await this.ffmpeg.export(id, sourcePath, dto.clips, fadeDuration, (p) =>
+        this.jobs.update(id, { progress: p }),
       );
-      this.jobs.update(id, { status: 'done', outputPath });
+      this.jobs.update(id, { status: 'done', progress: 100, outputPath });
       await this.storage.cleanupIntermediate(id);
-      return { jobId: id, status: 'done' };
     } catch (err) {
       this.jobs.setStatus(id, 'failed', (err as Error).message);
       this.logger.error(`export failed for ${id}: ${(err as Error).message}`);
-      throw new BadRequestException('Export failed while processing the video.');
     }
   }
 

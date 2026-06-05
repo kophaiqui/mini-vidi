@@ -12,6 +12,7 @@ export interface Job {
   sourcePath: string;
   outputPath: string;
   duration?: number;
+  progress?: number;
   error?: string;
   createdAt: number;
 }

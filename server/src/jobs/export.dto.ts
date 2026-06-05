@@ -20,6 +20,15 @@ export class ClipDto {
   @IsNumber()
   @Min(0)
   end: number;
+
+  /**
+   * Transition into the *next* clip. A transition belongs to the boundary
+   * between two clips, so this is set on every clip except the last (where it
+   * is ignored). Omitted means a hard cut.
+   */
+  @IsOptional()
+  @IsIn(['cut', 'fade'])
+  transitionAfter?: 'cut' | 'fade';
 }
 
 export class ExportDto {
@@ -29,9 +38,6 @@ export class ExportDto {
   @ValidateNested({ each: true })
   @Type(() => ClipDto)
   clips: ClipDto[];
-
-  @IsIn(['cut', 'fade'])
-  transition: 'cut' | 'fade';
 
   @IsOptional()
   @IsNumber()
