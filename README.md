@@ -47,8 +47,9 @@ React UI ──HTTP──> NestJS API ──> yt-dlp (download)  ──> /tmp/<j
 | ------ | --------------------------- | ---------------------------------------- |
 | POST   | `/api/import`               | Download a YouTube URL, return `jobId`   |
 | GET    | `/api/videos/:id/source`    | Stream source for the `<video>` preview  |
-| POST   | `/api/jobs/:id/export`      | Cut + merge clips (runs synchronously)   |
-| GET    | `/api/jobs/:id`             | Job status                               |
+| GET    | `/api/videos/:id/frame?t=`  | Single JPEG poster frame for a clip thumb |
+| POST   | `/api/jobs/:id/export`      | Enqueue cut + merge, returns immediately |
+| GET    | `/api/jobs/:id`             | Job status + progress (0–100)            |
 | GET    | `/api/jobs/:id/download`    | Stream the final `output.mp4`            |
 
 ### Processing pipeline
@@ -58,11 +59,32 @@ React UI ──HTTP──> NestJS API ──> yt-dlp (download)  ──> /tmp/<j
 2. **Extract each clip, re-encoded to identical parameters** (`libx264`, CRF 28,
    `veryfast`, 44.1 kHz stereo, `yuv420p`). Normalizing every clip is what makes
    the merge cheap.
-3. **Merge** with the ffmpeg `concat` demuxer:
-   - `cut` → stream copy (`-c copy`), no second re-encode — near instant.
-   - `fade` → each segment dips in/out of black (video `fade` + audio `afade`)
-     before the join.
-4. **Clean up** `source.mp4` and the per-clip files; keep `output.mp4`.
+3. **Merge** with the ffmpeg `concat` demuxer (always a stream copy, `-c copy` —
+   no second re-encode). Transitions are baked into the clips during extraction:
+   - `cut` boundary → no fade; clips butt straight against each other.
+   - `fade` boundary → the left clip dips out to black and the right clip dips in
+     from black (video `fade` + audio `afade`).
+4. **Report progress** after each step (N clips + 1 merge) so the client can poll.
+5. **Clean up** `source.mp4` and the per-clip files; keep `output.mp4`.
+
+### Timeline and transition model
+
+The editor models the output as an **ordered list of clips**, each with a source
+time range and an optional `transitionAfter` field. Transitions therefore belong
+to the **boundary between two clips**, not to the video as a whole — so every clip
+except the last one carries its own transition:
+
+```
+Clip 1 ──fade──► Clip 2 ──cut──► Clip 3
+```
+
+This matches how editing timelines are normally modeled while keeping the
+implementation simple: a `fade` boundary just means "fade the left clip out and
+the next one in" at extraction time, so the merge stays a cheap stream copy.
+
+Only **Cut** and **Fade** are implemented. **Slide** was considered but left as
+future work — it needs a more complex ffmpeg filter graph and more CPU, and the
+target runtime (0.5 vCPU / 1 GB RAM) prioritizes stable, predictable processing.
 
 ---
 
@@ -101,11 +123,14 @@ combined-format fallback, just less robustly.)
 
 | Skipped                         | Why                                                                 |
 | ------------------------------- | ------------------------------------------------------------------- |
-| Async jobs + status polling     | Clips are short; a synchronous request is simpler with fewer failure modes. The single-slot queue still serializes work. |
 | Persistent job store (DB/disk)  | Single container → an in-memory `Map` is enough. Restart loses in-flight jobs; acceptable for a prototype. |
 | True `xfade`/slide transitions  | CPU-heavy full-timeline re-encode; poor fit for 0.5 vCPU in scope.  |
-| Clip reordering / drag timeline | "Set start / set end" off the native player is faster and reliable; reordering is low-value here. |
+| Drag-and-drop timeline          | `Move ↑ / ↓` reordering is faster to build and impossible to get subtly wrong; drag-drop is polish, not core. |
 | Auth, multi-user, rate limiting | Out of scope for a prototype; belongs at the gateway (see Scaling). |
+
+Export **is** asynchronous: `/export` validates and enqueues, returns immediately,
+and the client polls `/jobs/:id` for status + progress. The single-slot queue
+still serializes the actual `ffmpeg` work.
 
 Trade-off summary: I optimized for **reliable end-to-end behavior under the
 resource cap** and **readable, well-separated code** over feature breadth.
@@ -117,26 +142,25 @@ resource cap** and **readable, well-separated code** over feature breadth.
 **CPU saturation on `ffmpeg`, immediately.**
 
 A single export of a few short clips already uses meaningful CPU time, and this
-container processes **one at a time** by design. At 1,000 concurrent submissions,
-999 wait behind the single slot — and because `/export` is synchronous, each
-waiting request holds a connection open the whole time, so the server exhausts
-sockets / event-loop headroom and starts timing out long before the queue drains.
-Disk filling with `source.mp4` files is a close second; YouTube rate-limiting on
-concurrent downloads is a third.
+container processes **one at a time** by design. Export is already asynchronous —
+`/export` enqueues and returns, the client polls `/jobs/:id` — so the API doesn't
+block on processing. But the queue and the worker live **in the same process**:
+at 1,000 concurrent submissions 999 jobs pile up in one container's memory, that
+single `ffmpeg` slot drains them serially over hours, and the unbounded backlog
+plus growing `/tmp` fills RAM and disk. Disk filling with `source.mp4` files is a
+close second; YouTube rate-limiting on concurrent downloads is a third.
 
 **The ordered fix — decouple acceptance from processing:**
 
-1. **Make export asynchronous.** `/export` validates, enqueues, returns
-   `202 Accepted`; the client polls `/jobs/:id`. The API stops being blocked by
-   processing time.
-2. **Move the queue out of process** to **SQS** (or similar). The API only
-   enqueues; it never runs `ffmpeg`.
-3. **Scale a worker pool horizontally.** Many small ECS workers, each pulling one
+1. **Move the queue out of process** to **SQS** (or similar). The API only
+   enqueues; it never runs `ffmpeg`. (The async `/export` + polling contract the
+   client already speaks stays exactly the same.)
+2. **Scale a worker pool horizontally.** Many small ECS workers, each pulling one
    job at a time (one `ffmpeg` per worker — same per-container discipline, now
    replicated). Throughput scales with worker count; autoscale on queue depth.
-4. **Move storage to S3** and hand back a CloudFront/presigned download URL. Local
+3. **Move storage to S3** and hand back a CloudFront/presigned download URL. Local
    disk stops being a bottleneck and a single point of failure.
-5. **Protect the front door:** rate-limit per user/IP and cap the global queue so
+4. **Protect the front door:** rate-limit per user/IP and cap the global queue so
    the system sheds load gracefully instead of collapsing.
 
 ```
